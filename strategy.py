@@ -22,6 +22,7 @@ best / median / stability across the family.
 
 import numpy as np
 import pandas as pd
+from ta.momentum import RSIIndicator
 from ta.volatility import AverageTrueRange
 
 
@@ -31,6 +32,8 @@ DEFAULT_PARAMS = {
     "atr_len":    22,
     "atr_mult":   3.0,
     "slope_look": 5,
+    "rsi_len":    14,
+    "rsi_tp":     75,
 }
 
 PARAM_GRID = {
@@ -63,6 +66,9 @@ def generate_signals(df: pd.DataFrame, params: dict | None = None):
     below_stop = df["close"] < chandelier_stop
     stop_hit = below_stop & below_stop.shift(1).fillna(False)
 
+    rsi = RSIIndicator(close=df["close"], window=int(p["rsi_len"])).rsi()
+    rsi_tp = rsi > float(p["rsi_tp"])
+
     entries = (cross_up & slow_rising).fillna(False).astype(bool)
-    exits   = stop_hit.fillna(False).astype(bool)
+    exits   = (stop_hit | rsi_tp).fillna(False).astype(bool)
     return entries, exits, ALLOCATION
