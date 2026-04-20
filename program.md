@@ -17,11 +17,17 @@ Do exactly ONE iteration per invocation, then exit.
 1. **Read state**
    - Read `best_score.txt` → this is the current best composite score.
    - Read `strategy.py` → understand the current approach.
-   - Optionally: `git log --oneline -20` to see what's been tried.
+   - **Read `attempts.log`** (if it exists) → every prior iteration's idea
+     and score, across the entire run. This is your cross-iteration memory.
+     `tail -n 40 attempts.log` is usually enough.
+   - Optionally: `git log --oneline -20` for *kept* iterations only
+     (failures don't commit).
 
 2. **Propose ONE change**
    - Pick a single, concrete idea: a new indicator, a filter, a different
      exit rule, revised parameters, a regime filter, etc.
+   - **Do NOT repeat an idea from `attempts.log`.** If every easy variant
+     is exhausted, combine two prior ideas or try something unusual.
    - Edit `strategy.py`. Keep the function signature:
      `generate_signals(df) -> (entries, exits, allocation)`.
 
@@ -30,7 +36,16 @@ Do exactly ONE iteration per invocation, then exit.
    - The final lines print `COMPOSITE SCORE: X.XXXX`.
    - Parse that number from `run.log`.
 
-4. **Decide**
+4. **Record the attempt (always, success or failure)**
+   - Append ONE line to `attempts.log`:
+     `YYYY-MM-DDTHH:MM:SSZ | <score> | <kept|reverted> | <one-line idea>`
+   - Use `date -u +%FT%TZ` for the timestamp.
+   - The one-line idea must be specific enough that future-you can tell
+     whether a new proposal duplicates it (e.g. "SMA200 regime filter on
+     entries, skip when close < SMA200" — not just "regime filter").
+   - `attempts.log` is gitignored — do NOT `git add` it.
+
+5. **Decide**
    - If NEW score < best score:
      - Write the new score to `best_score.txt` (just the number, one line).
      - `git add strategy.py best_score.txt`
@@ -40,7 +55,7 @@ Do exactly ONE iteration per invocation, then exit.
      - Leave `best_score.txt` alone.
      - Commit nothing.
 
-5. **Exit**. The bash loop will invoke you again for the next iteration.
+6. **Exit**. The bash loop will invoke you again for the next iteration.
 
 ## What makes a good idea
 
