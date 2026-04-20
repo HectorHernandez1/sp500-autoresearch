@@ -35,6 +35,8 @@ DEFAULT_PARAMS = {
     "rsi_len":    14,
     "rsi_tp":     75,
     "profit_r":   4.0,
+    "kelt_len":   20,
+    "kelt_mult":  1.5,
 }
 
 PARAM_GRID = {
@@ -59,12 +61,17 @@ def generate_signals(df: pd.DataFrame, params: dict | None = None):
     close_above_fast = df["close"] > fast
     close_below_fast_prev = df["close"].shift(1) <= fast.shift(1)
     pullback_bounce = trend_up & close_above_fast & close_below_fast_prev
-    entries = ((cross_up | pullback_bounce) & slow_rising).fillna(False).astype(bool)
 
     atr = AverageTrueRange(
         high=df["high"], low=df["low"], close=df["close"],
         window=int(p["atr_len"]),
     ).average_true_range()
+
+    kelt_mid = df["close"].rolling(int(p["kelt_len"]), min_periods=int(p["kelt_len"])).mean()
+    kelt_upper = kelt_mid + float(p["kelt_mult"]) * atr
+    kelt_break = (df["close"] > kelt_upper) & (df["close"].shift(1) <= kelt_upper.shift(1))
+
+    entries = ((cross_up | pullback_bounce | kelt_break) & slow_rising).fillna(False).astype(bool)
     rolling_high = df["high"].rolling(
         int(p["atr_len"]), min_periods=int(p["atr_len"])
     ).max()
