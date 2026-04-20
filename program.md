@@ -12,7 +12,10 @@ in `data/`. The harness is sacred.
 
 ## One iteration = one run of this loop
 
-Do exactly ONE iteration per invocation, then exit.
+Do exactly ONE iteration per invocation, then exit. `loop.sh` has already
+checked out an `experiments/autoloop-*` branch — do NOT switch branches
+and do NOT push. Your commits stay local on the experiment branch until
+the user decides to merge winners into main.
 
 1. **Read state**
    - Read `best_score.txt` → this is the current best composite score.
