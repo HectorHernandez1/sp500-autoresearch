@@ -50,6 +50,12 @@ TARGET_BREADTH       = 0.55          # fraction of tickers with Sharpe > 0
 W_SHARPE  = 0.6
 W_BREADTH = 0.4
 
+# Walk-forward: split each ticker's return stream into N_FOLDS equal chunks.
+# Ticker's Sharpe = median across fold Sharpes (requires ≥ MIN_FOLD_BARS per fold).
+# Protects against strategies that only work in one macro regime.
+N_FOLDS        = 5
+MIN_FOLD_BARS  = 60
+
 # Grid mode
 MAX_COMBOS  = 500
 GPU_DEVICE  = "cuda"     # falls back to cpu if unavailable
@@ -245,10 +251,11 @@ def backtest_one(df: pd.DataFrame, entries: pd.Series, exits: pd.Series,
 
     eq = pd.Series(equity, index=df.index)
     rets = eq.pct_change().dropna()
-    if rets.std() == 0 or len(rets) < 30:
-        sharpe = 0.0
-    else:
-        sharpe = float(rets.mean() / rets.std() * np.sqrt(TRADING_DAYS))
+
+    # Walk-forward Sharpe: median across N_FOLDS non-overlapping chunks.
+    # A strategy must be consistent across time-slices, not just net-positive
+    # over 10y that's dominated by one regime.
+    sharpe = _walk_forward_sharpe(rets)
 
     total_return = float((eq.iloc[-1] / INIT_CAPITAL - 1.0) * 100)
     running_max = eq.cummax()
@@ -260,6 +267,25 @@ def backtest_one(df: pd.DataFrame, entries: pd.Series, exits: pd.Series,
         max_dd=abs(max_dd),
         trades=trades,
     )
+
+
+def _walk_forward_sharpe(rets: pd.Series) -> float:
+    """Median Sharpe across N_FOLDS non-overlapping chunks of the return series."""
+    n = len(rets)
+    if n < N_FOLDS * MIN_FOLD_BARS:
+        return 0.0
+    fold_size = n // N_FOLDS
+    fold_sharpes: list[float] = []
+    for i in range(N_FOLDS):
+        start = i * fold_size
+        end   = n if i == N_FOLDS - 1 else (i + 1) * fold_size
+        chunk = rets.iloc[start:end]
+        if len(chunk) < MIN_FOLD_BARS or chunk.std() == 0:
+            continue
+        fold_sharpes.append(float(chunk.mean() / chunk.std() * np.sqrt(TRADING_DAYS)))
+    if not fold_sharpes:
+        return 0.0
+    return float(np.median(fold_sharpes))
 
 
 # ── Aggregate score ──────────────────────────────────────────────────────────
@@ -359,6 +385,9 @@ def run_universe_backtest(conn) -> None:
 
 
 # ── GPU grid backtest ────────────────────────────────────────────────────────
+# NOTE: grid backtest still computes full-period Sharpe (not walk-forward).
+# It's not wired into the loop and is kept as an experimental --grid flag.
+# If you re-enable it, port _walk_forward_sharpe to torch.
 def _get_torch_device():
     """Import torch lazily and return a device. Falls back to cpu."""
     import torch

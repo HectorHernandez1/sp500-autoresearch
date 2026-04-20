@@ -63,14 +63,63 @@ the user decides to merge winners into main.
 
 ## What makes a good idea
 
-- Classical TA: RSI, ADX, MACD, Bollinger, Donchian, Supertrend, Keltner.
-- Regime filters: only trade when SPY/index is above its 200d SMA,
-  or when realized vol is below some threshold.
-- Volatility-aware position sizing (but remember: allocation is a single
-  float for all tickers in this harness).
-- Multi-timeframe confirmations using resampling.
-- Better exits: ATR-based stops, time-based exits, trailing stops.
-- Trend confirmation: require both slope AND level conditions.
+Score now uses **walk-forward Sharpe** (median across 5 non-overlapping
+time-folds per ticker, `MIN_FOLD_BARS=60`). A strategy must be consistent
+across time-slices, not just net-positive over the whole 10y window —
+regime-dependent wins are punished.
+
+### Idea bank (check `attempts.log` first, don't repeat)
+
+**Entry alternatives**
+- Donchian breakout on `n`-day high (n∈{20,55}); pair with volatility filter.
+- Close above rolling `k*ATR` band above short MA (Keltner channel breakout).
+- Z-score mean-reversion: enter long when close is `<-1.5σ` below a 20d MA
+  (contrarian — opposite of the current trend-following bias).
+- MACD bullish cross with histogram > 0.
+- ADX > 25 gate on the current EMA cross (require *trending* market).
+
+**Exit alternatives**
+- Parabolic SAR instead of Chandelier.
+- ATR trailing stop from the entry price (not the rolling high).
+- Fixed fractional profit target AND stop (e.g. +2R/-1R).
+- Chandelier + time stop (exit after N bars regardless).
+- Exit on RSI > 75 (take profit into momentum blow-off).
+
+**Regime / filter layers**
+- Only trade when SPY 200d slope is rising (compute SPY separately with `yfinance`).
+- Realized-vol regime: take trades only when 20d realized vol is below
+  its trailing 252d median.
+- VIX proxy: skip entries when (SPY high-low range / SPY close) is elevated.
+- Earnings blackout: require N bars since last price gap > 5% (proxy).
+- Trend strength: require 50d SMA > 200d SMA AND slope(50d) > 0.
+
+**Multi-timeframe**
+- Resample to weekly; require weekly EMA cross aligned with daily entries.
+- Monthly trend gate: only enter if last month's close > close from 6 months ago.
+
+**Volatility-adaptive**
+- Scale `allocation` proportional to `1/realized_vol` (but cap at 1.0).
+- Wider Chandelier stop when ATR is high (vol-adaptive multiplier).
+- Skip entries when ATR exceeds a fraction of price (too noisy).
+
+**Cross-signal confirmation**
+- EMA cross + price above upper Bollinger band at entry.
+- Supertrend + OBV rising over last N bars.
+- Dual-EMA cross (both 10/30 AND 50/200 must agree).
+
+**Signal quality / timing**
+- Pullback entry: EMA cross happened in last 5 bars AND today's close is
+  within 1 ATR of the 20d high (buy the dip inside the trend).
+- N-bar breakout confirmation: only enter when close > prior `k` bars' high.
+- Entry only on "narrow range" days (today's range < last 7d avg range).
+
+**Unconventional**
+- Day-of-week filter (e.g. skip Mondays).
+- Consecutive up/down day count (streaks).
+- Two-legged confirmation across Tue close *and* Thu close.
+
+Pick ONE idea, combine intelligently with what's already working — do NOT
+strip out the existing Chandelier stop unless you're deliberately replacing it.
 
 ## What to avoid
 
