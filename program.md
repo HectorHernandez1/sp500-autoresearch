@@ -34,7 +34,8 @@ Do exactly ONE iteration per invocation, then exit.
 3. **Evaluate**
    - Run: `python prepare.py > run.log 2>&1`
    - The final lines print `COMPOSITE SCORE: X.XXXX`.
-   - Parse that number from `run.log`.
+   - Parse that number from `run.log`. Also visible: `TICKERS SCORED`,
+     `COVERAGE`, `MEDIAN SHARPE`, `BREADTH`.
 
 4. **Record the attempt (always, success or failure)**
    - Append ONE line to `attempts.log`:
@@ -79,9 +80,27 @@ Do exactly ONE iteration per invocation, then exit.
 - **Silent failures.** If run.log shows many tickers raising exceptions,
   your signal code has a bug. Fix it before committing.
 
+## Strategy contract
+
+```python
+DEFAULT_PARAMS = {"fast_span": 10, ...}
+
+def generate_signals(df, params=None) -> (entries, exits, allocation):
+    p = DEFAULT_PARAMS if params is None else params
+    # ... build signals using p["fast_span"] etc.
+```
+
+Single backtest per iteration — `params=None` uses `DEFAULT_PARAMS`. You
+choose the values. Pick the one set you think is best for this iteration;
+propose a different set next time if the score doesn't improve.
+
+**Coverage penalty**: your score is divided by `scored_tickers / eligible_tickers`.
+Strategies that opt out of hard tickers (fewer than `MIN_TRADES=5` trades)
+get their score inflated. Don't cheat the universe.
+
 ## Dependencies available
 
-`numpy`, `pandas`, `ta` (https://github.com/bukosabino/ta) are installed.
+`numpy`, `pandas`, and `ta` (https://github.com/bukosabino/ta) are installed.
 If you need another indicator library, note it in a commit message but do
 not add dependencies in this iteration.
 
