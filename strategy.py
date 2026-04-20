@@ -38,7 +38,7 @@ DEFAULT_PARAMS = {
     "profit_r":   4.0,
     "kelt_len":   20,
     "kelt_mult":  1.5,
-    "rolling_high_len": 14,
+    "rolling_high_len": 10,
 }
 
 PARAM_GRID = {
