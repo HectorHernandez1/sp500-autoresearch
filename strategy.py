@@ -26,17 +26,19 @@ from ta.volatility import AverageTrueRange
 
 
 DEFAULT_PARAMS = {
-    "fast_span": 10,
-    "slow_span": 30,
-    "atr_len":   22,
-    "atr_mult":  3.0,
+    "fast_span":  10,
+    "slow_span":  30,
+    "atr_len":    22,
+    "atr_mult":   3.0,
+    "slope_look": 5,
 }
 
 PARAM_GRID = {
-    "fast_span": [5, 8, 10, 12, 15],
-    "slow_span": [20, 30, 40, 50],
-    "atr_len":   [14, 22, 30],
-    "atr_mult":  [2.0, 2.5, 3.0, 3.5],
+    "fast_span":  [5, 8, 10, 12, 15],
+    "slow_span":  [20, 30, 40, 50],
+    "atr_len":    [14, 22, 30],
+    "atr_mult":   [2.0, 2.5, 3.0, 3.5],
+    "slope_look": [3, 5, 10],
 }
 
 ALLOCATION = 0.95
@@ -48,6 +50,7 @@ def generate_signals(df: pd.DataFrame, params: dict | None = None):
     fast = df["close"].ewm(span=int(p["fast_span"]), adjust=False).mean()
     slow = df["close"].ewm(span=int(p["slow_span"]), adjust=False).mean()
     cross_up = (fast > slow) & (fast.shift(1) <= slow.shift(1))
+    slow_rising = slow > slow.shift(int(p["slope_look"]))
 
     atr = AverageTrueRange(
         high=df["high"], low=df["low"], close=df["close"],
@@ -59,6 +62,6 @@ def generate_signals(df: pd.DataFrame, params: dict | None = None):
     chandelier_stop = rolling_high - float(p["atr_mult"]) * atr
     stop_hit = df["close"] < chandelier_stop
 
-    entries = cross_up.fillna(False).astype(bool)
+    entries = (cross_up & slow_rising).fillna(False).astype(bool)
     exits   = stop_hit.fillna(False).astype(bool)
     return entries, exits, ALLOCATION
