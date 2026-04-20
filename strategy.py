@@ -60,7 +60,8 @@ def generate_signals(df: pd.DataFrame, params: dict | None = None):
         int(p["atr_len"]), min_periods=int(p["atr_len"])
     ).max()
     chandelier_stop = rolling_high - float(p["atr_mult"]) * atr
-    stop_hit = df["close"] < chandelier_stop
+    below_stop = df["close"] < chandelier_stop
+    stop_hit = below_stop & below_stop.shift(1).fillna(False)
 
     entries = (cross_up & slow_rising).fillna(False).astype(bool)
     exits   = stop_hit.fillna(False).astype(bool)
