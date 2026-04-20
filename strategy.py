@@ -34,6 +34,7 @@ DEFAULT_PARAMS = {
     "slope_look": 5,
     "rsi_len":    14,
     "rsi_tp":     75,
+    "profit_r":   4.0,
 }
 
 PARAM_GRID = {
@@ -54,6 +55,7 @@ def generate_signals(df: pd.DataFrame, params: dict | None = None):
     slow = df["close"].ewm(span=int(p["slow_span"]), adjust=False).mean()
     cross_up = (fast > slow) & (fast.shift(1) <= slow.shift(1))
     slow_rising = slow > slow.shift(int(p["slope_look"]))
+    entries = (cross_up & slow_rising).fillna(False).astype(bool)
 
     atr = AverageTrueRange(
         high=df["high"], low=df["low"], close=df["close"],
@@ -72,6 +74,10 @@ def generate_signals(df: pd.DataFrame, params: dict | None = None):
     rsi = RSIIndicator(close=df["close"], window=int(p["rsi_len"])).rsi()
     rsi_tp = rsi > float(p["rsi_tp"])
 
-    entries = (cross_up & slow_rising).fillna(False).astype(bool)
-    exits   = (stop_hit | rsi_tp).fillna(False).astype(bool)
+    entry_price = pd.Series(np.where(entries, df["close"], np.nan), index=df.index).ffill()
+    atr_at_entry = pd.Series(np.where(entries, atr, np.nan), index=df.index).ffill()
+    profit_level = entry_price + float(p["profit_r"]) * float(p["atr_mult"]) * atr_at_entry
+    profit_target = (df["close"] > profit_level).fillna(False)
+
+    exits = (stop_hit | rsi_tp | profit_target).fillna(False).astype(bool)
     return entries, exits, ALLOCATION
