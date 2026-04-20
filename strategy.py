@@ -55,7 +55,11 @@ def generate_signals(df: pd.DataFrame, params: dict | None = None):
     slow = df["close"].ewm(span=int(p["slow_span"]), adjust=False).mean()
     cross_up = (fast > slow) & (fast.shift(1) <= slow.shift(1))
     slow_rising = slow > slow.shift(int(p["slope_look"]))
-    entries = (cross_up & slow_rising).fillna(False).astype(bool)
+    trend_up = fast > slow
+    close_above_fast = df["close"] > fast
+    close_below_fast_prev = df["close"].shift(1) <= fast.shift(1)
+    pullback_bounce = trend_up & close_above_fast & close_below_fast_prev
+    entries = ((cross_up | pullback_bounce) & slow_rising).fillna(False).astype(bool)
 
     atr = AverageTrueRange(
         high=df["high"], low=df["low"], close=df["close"],
