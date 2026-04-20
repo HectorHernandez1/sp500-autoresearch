@@ -62,7 +62,10 @@ def generate_signals(df: pd.DataFrame, params: dict | None = None):
     rolling_high = df["high"].rolling(
         int(p["atr_len"]), min_periods=int(p["atr_len"])
     ).max()
-    chandelier_stop = rolling_high - float(p["atr_mult"]) * atr
+    atr_median = atr.rolling(252, min_periods=60).median()
+    vol_ratio = (atr / atr_median).clip(lower=1.0, upper=1.5).fillna(1.0)
+    dynamic_mult = float(p["atr_mult"]) * vol_ratio
+    chandelier_stop = rolling_high - dynamic_mult * atr
     below_stop = df["close"] < chandelier_stop
     stop_hit = below_stop & below_stop.shift(1).fillna(False)
 
