@@ -23,6 +23,7 @@ best / median / stability across the family.
 import numpy as np
 import pandas as pd
 from ta.momentum import RSIIndicator
+from ta.trend import MACD
 from ta.volatility import AverageTrueRange
 
 
@@ -71,7 +72,10 @@ def generate_signals(df: pd.DataFrame, params: dict | None = None):
     kelt_upper = kelt_mid + float(p["kelt_mult"]) * atr
     kelt_break = (df["close"] > kelt_upper) & (df["close"].shift(1) <= kelt_upper.shift(1))
 
-    entries = ((cross_up | pullback_bounce | kelt_break) & slow_rising).fillna(False).astype(bool)
+    macd_ind = MACD(close=df["close"], window_fast=12, window_slow=26, window_sign=9)
+    macd_hist_pos = macd_ind.macd_diff() > 0
+
+    entries = ((cross_up | pullback_bounce | kelt_break) & slow_rising & macd_hist_pos).fillna(False).astype(bool)
     rolling_high = df["high"].rolling(
         int(p["atr_len"]), min_periods=int(p["atr_len"])
     ).max()
