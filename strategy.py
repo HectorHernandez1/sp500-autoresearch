@@ -12,7 +12,7 @@ Rules:
 Available on df (DatetimeIndex): open, high, low, close, volume
 `close` is split/dividend-adjusted already.
 
-EMA 10/30 crossover entries + Chandelier (ATR trailing) stop exits.
+EMA 10/30 crossover entries; Chandelier (ATR trailing) stop as sole exit.
 """
 
 import numpy as np
@@ -31,7 +31,6 @@ def generate_signals(df: pd.DataFrame):
     slow = df["close"].ewm(span=SLOW_SPAN, adjust=False).mean()
 
     cross_up = (fast > slow) & (fast.shift(1) <= slow.shift(1))
-    cross_dn = (fast < slow) & (fast.shift(1) >= slow.shift(1))
 
     atr = AverageTrueRange(
         high=df["high"], low=df["low"], close=df["close"], window=ATR_LEN
@@ -41,5 +40,5 @@ def generate_signals(df: pd.DataFrame):
     stop_hit = df["close"] < chandelier_stop
 
     entries = cross_up.fillna(False).astype(bool)
-    exits   = (cross_dn | stop_hit).fillna(False).astype(bool)
+    exits   = stop_hit.fillna(False).astype(bool)
     return entries, exits, ALLOCATION
