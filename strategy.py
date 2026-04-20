@@ -38,6 +38,7 @@ DEFAULT_PARAMS = {
     "profit_r":   4.0,
     "kelt_len":   20,
     "kelt_mult":  1.5,
+    "rolling_high_len": 14,
 }
 
 PARAM_GRID = {
@@ -77,7 +78,7 @@ def generate_signals(df: pd.DataFrame, params: dict | None = None):
 
     entries = ((cross_up | pullback_bounce | kelt_break) & slow_rising & macd_hist_pos).fillna(False).astype(bool)
     rolling_high = df["high"].rolling(
-        int(p["atr_len"]), min_periods=int(p["atr_len"])
+        int(p["rolling_high_len"]), min_periods=int(p["rolling_high_len"])
     ).max()
     atr_median = atr.rolling(252, min_periods=60).median()
     vol_ratio = (atr / atr_median).clip(lower=1.0, upper=1.5).fillna(1.0)
