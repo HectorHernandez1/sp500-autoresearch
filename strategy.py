@@ -56,7 +56,7 @@ def generate_signals(df: pd.DataFrame, params: dict | None = None):
         high=df["high"], low=df["low"], close=df["close"],
         window=int(p["atr_len"]),
     ).average_true_range()
-    rolling_high = df["close"].rolling(
+    rolling_high = df["high"].rolling(
         int(p["atr_len"]), min_periods=int(p["atr_len"])
     ).max()
     chandelier_stop = rolling_high - float(p["atr_mult"]) * atr
